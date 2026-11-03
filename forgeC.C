@@ -1,4 +1,4 @@
-/*
+ /*
  * ForgeC: a tiny educational compiler.
  *
  * Pipeline:  source -> parser -> AST -> semantic check -> C code -> system C compiler
