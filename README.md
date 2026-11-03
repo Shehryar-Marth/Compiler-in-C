@@ -1,9 +1,9 @@
 ForgeC
 
-A tiny compiler written in C, built to show the whole pipeline in one readable file. It parses a small language of integer arithmetic, checks it, generates C, and hands that to the system C compiler to produce a native executable.
+Ein winziger Compiler, geschrieben in C. Er zeigt die gesamte Pipeline in einer gut lesbaren Datei: Er parst eine kleine Sprache für Ganzzahl-Arithmetik, prüft sie, erzeugt C-Code und übergibt diesen an den C-Compiler des Systems, der daraus eine native ausführbare Datei baut.
 
-source.fc  ->  parser  ->  AST  ->  semantic check  ->  C code  ->  gcc/clang  ->  executable
-The language
+quelle.fc  ->  Parser  ->  AST  ->  semantische Prüfung  ->  C-Code  ->  gcc/clang  ->  ausführbare Datei
+Die Sprache
 program   := statement+
 statement := "print" expr ";"
 expr      := term   (("+" | "-") term)*
@@ -11,21 +11,21 @@ term      := unary  (("*" | "/" | "%") unary)*
 unary     := ("-" | "+") unary | primary
 primary   := integer | "(" expr ")"
 integer   := digit+
-Numbers are 64-bit signed integers.
-/ and % truncate toward zero, like C (-7 / 2 is -3, -7 % 3 is -1).
-*, /, % bind tighter than + and -. All binary operators are left-associative.
-Whitespace, including newlines, is insignificant. // starts a comment that runs to the end of the line.
-Integer overflow and division by zero are compile-time errors.
-Example
+Zahlen sind 64-Bit-Ganzzahlen mit Vorzeichen.
+/ und % runden zur Null hin, wie in C (-7 / 2 ergibt -3, -7 % 3 ergibt -1).
+*, /, % binden stärker als + und -. Alle binären Operatoren sind linksassoziativ.
+Leerraum, auch Zeilenumbrüche, ist bedeutungslos. // beginnt einen Kommentar bis zum Zeilenende.
+Ganzzahl-Überlauf und Division durch null sind Fehler zur Übersetzungszeit.
+Beispiel
 // examples/arithmetic.fc
 print 1 + 2 * 3;        // 7
 print (1 + 2) * 3;      // 9
-print 10 - 3 - 2;       // 5   (left-associative)
-print 100 / 7;          // 14  (truncates toward zero)
+print 10 - 3 - 2;       // 5   (linksassoziativ)
+print 100 / 7;          // 14  (rundet zur Null hin)
 print 100 % 7;          // 2
 print -7 / 2;           // -3
 print 3 - -2;           // 5
-print -9223372036854775807 - 1;  // smallest 64-bit integer
+print -9223372036854775807 - 1;  // kleinste 64-Bit-Ganzzahl
 $ ./forgec examples/arithmetic.fc arith
 Compilation successful.
 $ ./arith
@@ -37,29 +37,29 @@ $ ./arith
 -3
 5
 -9223372036854775808
-Build and use
+Bauen und benutzen
 
-You need a POSIX system (Linux, macOS, or WSL) and GCC or Clang. The compiler uses __builtin_*_overflow, so it must be built with one of those two.
+Du brauchst ein POSIX-System (Linux, macOS oder WSL) und GCC oder Clang. Der Compiler verwendet __builtin_*_overflow und muss deshalb mit einem dieser beiden gebaut werden.
 
 bash
 gcc -std=c11 -O2 -Wall -Wextra forgec.c -o forgec
 
-./forgec program.fc program     # compile program.fc to the executable ./program
-./forgec --emit-c program.fc out.c   # just write the generated C
+./forgec program.fc program          # program.fc zur ausführbaren Datei ./program übersetzen
+./forgec --emit-c program.fc out.c   # nur den erzeugten C-Code schreiben
 ./forgec --help
 
-By default ForgeC runs gcc to build the generated C. Set CC to use a different compiler:
+Standardmäßig ruft ForgeC gcc auf, um den erzeugten C-Code zu übersetzen. Mit der Umgebungsvariable CC kannst du einen anderen Compiler wählen:
 
 bash
 CC=clang ./forgec program.fc program
-Exit codes
-Code	Meaning
-0	Success
-1	Compile error (syntax, overflow, division by zero, unreadable file, or the C compiler failed)
-2	Wrong command-line usage
-Error messages
+Exit-Codes
+Code	Bedeutung
+0	Erfolg
+1	Übersetzungsfehler (Syntax, Überlauf, Division durch null, nicht lesbare Datei oder der C-Compiler ist fehlgeschlagen)
+2	Falsche Verwendung der Kommandozeile
+Fehlermeldungen
 
-Errors are reported as file:line:column: error: message, pointing at the exact spot:
+Fehler werden als datei:zeile:spalte: error: meldung ausgegeben und zeigen auf die genaue Stelle. Die Meldungen selbst sind auf Englisch:
 
 $ cat bad.fc
 print 1;
@@ -70,50 +70,50 @@ bad.fc:2:27: error: integer overflow in '+'
 $ ./forgec worse.fc worse
 worse.fc:3:3: error: expected an expression but found ';'
 
-Overflow and division-by-zero errors point at the operator. Failed compiles leave no output file behind.
+Bei Überlauf und Division durch null zeigt die Meldung auf den Operator. Fehlgeschlagene Übersetzungen hinterlassen keine Ausgabedatei.
 
-How it works
-Stage	What it does
-Parser	A hand-written recursive-descent parser, one function per grammar rule. It tracks line and column for error messages.
-AST	Numbers, unary minus, and binary operators. Nodes are freed after each statement.
-Semantic check	Evaluates each expression with checked 64-bit arithmetic (__builtin_add_overflow and friends). Any overflow or division by zero stops compilation with a located error.
-Code generation	Emits one printf("%lld\n", <expression>); per statement, with every sub-expression fully parenthesized.
-C compiler	The generated C is piped to the compiler's standard input.
+So funktioniert es
+Stufe	Aufgabe
+Parser	Handgeschriebener Recursive-Descent-Parser, eine Funktion pro Grammatikregel. Er verfolgt Zeile und Spalte für die Fehlermeldungen.
+AST	Zahlen, unäres Minus und binäre Operatoren. Die Knoten werden nach jeder Anweisung freigegeben.
+Semantische Prüfung	Wertet jeden Ausdruck mit überlaufgeprüfter 64-Bit-Arithmetik aus (__builtin_add_overflow und Verwandte). Jeder Überlauf und jede Division durch null beendet die Übersetzung mit einer Fehlermeldung samt Position.
+Codegenerierung	Erzeugt pro Anweisung ein printf("%lld\n", <Ausdruck>);, wobei jeder Teilausdruck vollständig geklammert ist.
+C-Compiler	Der erzeugte C-Code wird an die Standardeingabe des Compilers übergeben.
 
-Some design decisions worth knowing about:
+Einige Entwurfsentscheidungen:
 
-No shell and no temp files. The compiler is started with fork and execlp, and the C source goes over a pipe. The output filename is passed as a plain argument, so names with spaces, quotes, $(...), or a leading - are all harmless. An earlier version built a shell command string, which allowed command injection through the output filename.
--9223372036854775808 works. The number is parsed as a magnitude, and a leading - is folded into the literal, because 9223372036854775808 on its own does not fit in a 64-bit integer.
-Resource limits. Input is capped at 1 MB, parenthesis and unary-operator nesting at 200 levels, and expression depth at 5,000, so hostile input produces an error rather than a stack overflow.
+Keine Shell und keine temporären Dateien. Der Compiler wird mit fork und execlp gestartet, der C-Code läuft über eine Pipe. Der Name der Ausgabedatei wird als normales Argument übergeben. Namen mit Leerzeichen, Anführungszeichen, $(...) oder einem führenden - sind deshalb harmlos. Eine frühere Version baute einen Shell-Befehl als Zeichenkette zusammen, was über den Ausgabedateinamen Command Injection erlaubte.
+-9223372036854775808 funktioniert. Die Zahl wird als Betrag geparst, und ein führendes - wird in das Literal eingerechnet, denn 9223372036854775808 allein passt nicht in eine 64-Bit-Ganzzahl.
+Ressourcengrenzen. Die Eingabe ist auf 1 MB begrenzt, die Verschachtelung von Klammern und unären Operatoren auf 200 Ebenen und die Ausdruckstiefe auf 5.000. Böswillige Eingaben führen so zu einem Fehler statt zu einem Stack-Überlauf.
 Tests
 bash
 ./test.sh
 
-The suite builds the compiler with -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Werror and runs 73 checks:
+Die Testsuite baut den Compiler mit -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Werror und führt 73 Prüfungen aus:
 
-valid programs and their exact output (precedence, associativity, truncating division, LLONG_MIN/LLONG_MAX, comments, CRLF line endings)
-compile-time errors, including overflow in every operator, division by zero, bad syntax, NUL bytes, and over-deep nesting
-error line and column positions
-command-line behavior: usage, --help, --emit-c, a missing or failing C compiler, the CC variable
-shell-injection attempts through the output filename
-the example programs
+gültige Programme mit exakter Ausgabe (Rangfolge, Assoziativität, abschneidende Division, LLONG_MIN/LLONG_MAX, Kommentare, CRLF-Zeilenenden)
+Übersetzungsfehler, darunter Überlauf bei jedem Operator, Division durch null, fehlerhafte Syntax, NUL-Bytes und zu tiefe Verschachtelung
+Zeilen- und Spaltenangaben in Fehlermeldungen
+Verhalten der Kommandozeile: Usage, --help, --emit-c, fehlender oder fehlschlagender C-Compiler, die Variable CC
+Shell-Injection-Versuche über den Ausgabedateinamen
+die Beispielprogramme
 
-Options:
+Optionen:
 
 bash
-CC=clang ./test.sh                                        # use a different C compiler
-FORGEC_CFLAGS="-g -fsanitize=address,undefined" ./test.sh # build forgec with sanitizers
+CC=clang ./test.sh                                        # anderen C-Compiler verwenden
+FORGEC_CFLAGS="-g -fsanitize=address,undefined" ./test.sh # forgec mit Sanitizern bauen
 
-The suite passes on Linux with GCC 13.3, both in a normal build and with AddressSanitizer and UBSan enabled. I also checked that it can fail: deliberately breaking the overflow check, the operator precedence, or the shell-safe process launch each makes it report failures.
+Die Suite besteht unter Linux mit GCC 13.3, sowohl im normalen Build als auch mit aktivierten AddressSanitizer und UBSan. Sie erkennt außerdem Regressionen: Wenn man absichtlich die Überlaufprüfung, die Operatorrangfolge oder den shell-sicheren Prozessstart kaputt macht, meldet sie jeweils Fehler.
 
-Not tested: macOS, Clang, and Windows (not supported).
+Nicht getestet: macOS, Clang und Windows (nicht unterstützt).
 
-Limitations
-Only constants. There are no variables, input, or control flow, so every program's output is fixed at compile time. The generated C is real code, but the C compiler can fold all of it. This is a teaching compiler, not a useful language.
-POSIX only. It relies on fork, pipe, and execlp. On Windows, use WSL.
-One output type. Every print writes a signed 64-bit integer.
-Ideas for extending it
-Add variables (let x = 5;) and a symbol table. This turns the semantic check into a real name-resolution pass.
-Replace the compile-time evaluator with generated runtime checks, which you need once values depend on input.
-Add if/while, and then functions.
-Generate assembly or LLVM IR instead of C.
+Einschränkungen
+Nur Konstanten. Es gibt keine Variablen, keine Eingabe und keine Kontrollstrukturen. Die Ausgabe jedes Programms steht daher schon zur Übersetzungszeit fest. Der erzeugte C-Code ist echter Code, aber der C-Compiler kann ihn vollständig auswerten. Das ist ein Lehr-Compiler, keine nützliche Sprache.
+Nur POSIX. Er benötigt fork, pipe und execlp. Unter Windows nutze WSL.
+Nur ein Ausgabetyp. Jedes print schreibt eine vorzeichenbehaftete 64-Bit-Ganzzahl.
+Ideen für Erweiterungen
+Variablen (let x = 5;) und eine Symboltabelle hinzufügen. Damit wird aus der semantischen Prüfung eine echte Namensauflösung.
+Den Auswerter zur Übersetzungszeit durch erzeugte Laufzeitprüfungen ersetzen, was nötig wird, sobald Werte von Eingaben abhängen.
+if/while und danach Funktionen hinzufügen.
+Statt C Assembler oder LLVM-IR erzeugen.
